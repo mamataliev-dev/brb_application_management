@@ -25,5 +25,5 @@ class ProductionConfig(Config):
 
     SQLALCHEMY_DATABASE_URI = os.getenv(
         'PROD_DATABASE_URI',
-        'postgresql://brb_brvi_user:bqynIw93X0kPm3hUVQxHyRakPloHi6T7@dpg-cust33lumphs73ccdhg0-a.oregon-postgres.render.com/brb_brvi'
+        'postgres://koyeb-adm:npg_rs07lpnDkXBt@ep-super-shape-a2oowjjw.eu-central-1.pg.koyeb.app/koyebdb'
     )
