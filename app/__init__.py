@@ -29,7 +29,7 @@ def setup_logging():
 logger = setup_logging()
 
 
-def create_app(config_class='config.DevelopmentConfig'):
+def create_app(config_class='config.ProductionConfig'):
     app = Flask(__name__)
     app.config.from_object(config_class)
 
