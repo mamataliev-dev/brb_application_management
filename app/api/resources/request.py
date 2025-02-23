@@ -2,12 +2,14 @@ from datetime import datetime
 from flask_restful import Resource
 from flask import request
 from sqlalchemy.orm.attributes import flag_modified
+from flask_cors import cross_origin
 
 from app.models import Branch, Manager, Request, RequestTransfer, RequestHistory
 from app.extensions import db
 
 
 class RequestResource(Resource):
+    @cross_origin()
     def get(self, request_id):
         user_request = self._fetch_request_by_id(request_id)
 
@@ -16,6 +18,7 @@ class RequestResource(Resource):
 
         return self._build_request_response(user_request), 200
 
+    @cross_origin()
     def put(self, request_id):
         data = request.get_json()
         user_request = self._fetch_request_by_id(request_id)
@@ -40,6 +43,7 @@ class RequestResource(Resource):
 
         return self._build_request_response(user_request), 200
 
+    @cross_origin()
     def delete(self, request_id):
         user_request = self._fetch_request_by_id(request_id)
 
@@ -116,6 +120,7 @@ class RequestListResource(Resource):
     def __init__(self):
         self.request_resource = RequestResource()
 
+    @cross_origin()
     def get(self):
         branch_id = request.args.get("branch_id", type=int)
         status = request.args.get("status", type=str)
@@ -155,6 +160,7 @@ class RequestListResource(Resource):
 
 
 class RequestHistoryResource(Resource):
+    @cross_origin()
     def get(self, request_id):
         history_entries = self._fetch_request_history_by_id(request_id)
 
@@ -179,6 +185,7 @@ class RequestHistoryResource(Resource):
 
 
 class RequestHistoryListResource(Resource):
+    @cross_origin()
     def get(self):
         history_entries = RequestHistory.query.all()
 
