@@ -43,6 +43,7 @@ def create_app(config_class='config.ProductionConfig'):
 
     @app.after_request
     def apply_cors(response):
+        print("DEBUG: Applying CORS headers on Render")
         response.headers["Access-Control-Allow-Origin"] = "*"
         response.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization"
         response.headers["Access-Control-Allow-Methods"] = "GET,PUT,POST,DELETE,OPTIONS"
