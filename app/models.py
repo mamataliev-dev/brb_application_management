@@ -1,6 +1,6 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, ForeignKey, Text, DateTime, JSON, Enum
-from sqlalchemy.orm import relationship, declarative_base
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, JSON, Enum, Index
+from sqlalchemy.orm import relationship
 
 from app.extensions import db
 
@@ -57,6 +57,10 @@ class Branch(db.Model):
     managers = relationship("Manager", back_populates="branch")
     requests = relationship("Request", back_populates="branch")
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        Index("idx_branch_name", "name")
+    )
 
 
 class Manager(db.Model):
@@ -126,6 +130,11 @@ class Request(db.Model):
     branch = relationship("Branch", back_populates="requests")
     history_entries = relationship("RequestHistory", back_populates="request", cascade="all, delete-orphan")
     created_at = Column(DateTime, default=0)
+
+    __table_args__ = (
+        Index("idx_client_name", "client_name"),
+        Index("idx_phone_number", "phone_number"),
+    )
 
 
 class RequestTransfer(db.Model):
