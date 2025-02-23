@@ -59,7 +59,7 @@ class Branch(db.Model):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     __table_args__ = (
-        Index("idx_branch_name", "name")
+        Index("idx_branch_name", "name"),
     )
 
 
