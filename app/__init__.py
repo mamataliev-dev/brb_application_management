@@ -3,6 +3,8 @@ import sys
 
 from flask import Flask
 from logging.handlers import RotatingFileHandler
+from flask_cors import CORS
+
 from app.extensions import db, migrate
 from app.api import api_blueprint
 
@@ -31,6 +33,7 @@ logger = setup_logging()
 
 def create_app(config_class='config.ProductionConfig'):
     app = Flask(__name__)
+    CORS(app)
     app.config.from_object(config_class)
 
     db.init_app(app)
