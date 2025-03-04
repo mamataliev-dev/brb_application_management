@@ -4,9 +4,10 @@ import sys
 from flask import Flask
 from logging.handlers import RotatingFileHandler
 from flask_cors import CORS
+from flask_graphql import GraphQLView
+from app.api.graphql import schema
 
 from app.extensions import db, migrate
-from app.api import api_blueprint
 
 
 def setup_logging():
@@ -31,7 +32,7 @@ def setup_logging():
 logger = setup_logging()
 
 
-def create_app(config_class='config.ProductionConfig'):
+def create_app(config_class='config.DevelopmentConfig'):
     app = Flask(__name__)
     CORS(app, resources={r"/.*": {"origins": "*"}})
     app.config.from_object(config_class)
@@ -39,11 +40,17 @@ def create_app(config_class='config.ProductionConfig'):
     db.init_app(app)
     migrate.init_app(app, db)
 
-    app.register_blueprint(api_blueprint)
+    app.add_url_rule(
+        "/graphql",
+        view_func=GraphQLView.as_view(
+            "graphql",
+            schema=schema,
+            graphiql=True
+        )
+    )
 
     @app.after_request
     def apply_cors(response):
-        print("DEBUG: Applying CORS headers on Render")
         response.headers["Access-Control-Allow-Origin"] = "*"
         response.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization"
         response.headers["Access-Control-Allow-Methods"] = "GET,PUT,POST,DELETE,OPTIONS"
