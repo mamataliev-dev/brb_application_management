@@ -1,34 +1,53 @@
 from graphene import ObjectType, Enum, String, Int, ID, List, InputObjectType, DateTime, Boolean
 
 
+class Admin(ObjectType):
+    password = String(required=True)
+    role = String(default_value="admin")
+
+
+class Manager(ObjectType):
+    id = ID()
+    username = String()
+    name = String()
+    password = String()
+    branch = String()
+    created_at = String()
+    role = String(default_value="manager")
+
+
 class Note(ObjectType):
     id = String(required=True)
     text = String()
     timestamp = String()
     is_updated = Boolean(default_value=False)
+    updated_by = String()
+    created_by = String()
 
 
 class ApplicationHistory(ObjectType):
     id = ID()
     application_id = ID()
-    changed_at = DateTime()
+    updated_at = DateTime()
     updated_fields = List(String)
     previous_values = String()
     new_values = String()
+    updated_by = String()
 
 
 class Application(ObjectType):
     id = ID()
-    branch_id = Int()
+    branch = String()
     client_name = String()
     notes = List(Note)
     phone_number = String()
     product = String()
     created_at = String()
     status = String()
-    history_entries = List(ApplicationHistory, description="History of changes to this application")
+    history = List(ApplicationHistory, description="History of changes to this application")
     is_deleted = Boolean()
     deleted_at = String()
+    deleted_by = String()
 
 
 class NoteInput(InputObjectType):
@@ -37,7 +56,7 @@ class NoteInput(InputObjectType):
 
 class UpdateApplicationInput(InputObjectType):
     id = ID(required=True)
-    branch_id = ID()
+    branch_name = String()
     client_name = String()
     phone_number = String()
     product = String()
@@ -45,10 +64,17 @@ class UpdateApplicationInput(InputObjectType):
     notes = List(NoteInput)
 
 
+class UpdateManagerInput(InputObjectType):
+    id = ID(required=True)
+    branch_name = String()
+    name = String()
+    password = String()
+
+
 class ApplicationSortField(Enum):
     ID = "id"
     CLIENT_NAME = "client_name"
-    REQUEST_DATETIME = "request_datetime"
+    APPLICATION_DATETIME = "application_datetime"
 
 
 class SortDirection(Enum):
@@ -57,7 +83,7 @@ class SortDirection(Enum):
 
 
 class ApplicationFilterInput(InputObjectType):
-    branch_id = ID(description="Filter by branch ID")
+    branch = String(description="Filter by branch name")
     status = String(description="Filter by status (e.g., 'in-progress', 'closed')")
 
 
@@ -67,7 +93,7 @@ class ApplicationSortInput(InputObjectType):
 
 
 class BranchCount(ObjectType):
-    branch_id = Int(description="ID of the branch")
+    branch = String(description="Name of the branch")
     count = Int(description="Total number of applications for this branch")
 
 

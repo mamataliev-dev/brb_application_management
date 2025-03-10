@@ -1,0 +1,157 @@
+Register Manager:
+
+mutation {
+  registerManager(name: "Ivan Ivanov", password: "securepass1234", branch: "Tashkent") {
+    manager {
+      id
+      name
+      branch
+      createdAt
+    }
+  }
+}
+
+Fetch Application:
+
+{
+  fetchApplicationById(id: "1") {
+    id
+    clientName
+    phoneNumber
+    product
+    status
+    branch
+    isDeleted
+    deletedAt
+    deletedBy
+    notes {
+      text
+      timestamp
+      isUpdated
+      updatedBy
+      createdBy
+    }
+    history {
+      id
+      applicationId
+      updatedAt
+      updatedFields
+      previousValues
+      newValues
+      updatedBy
+    }
+  }
+}
+
+
+Fetch all managers:
+
+{
+  fetchAllManagers {
+    id
+    name
+    branch
+    createdAt
+    password
+  }
+}
+
+Add Note:
+
+mutation {
+  addNoteToApplication(id: "1", note: {text: "Note created"}) {
+    application {
+      id
+      notes {
+        text
+        timestamp
+        isUpdated
+        updatedBy
+        id
+        createdBy
+      }
+    }
+  }
+}
+
+Update Application:
+
+mutation {
+  updateApplication(input: {id: "1", status: "closed"}) {
+    application {
+      id
+      clientName
+      phoneNumber
+      product
+      status
+      branch
+      createdAt
+    }
+  }
+}
+
+Login Admin:
+
+mutation {
+	loginAdmin(password: "12345678") {
+    success
+    message
+  }
+}
+
+Update Note:
+
+mutation {
+  updateNoteFromApplication(id: "1", noteId: "a763281b-09e3-46c6-8966-7d3e64e5d6b1", newNote: {text: "Updated note content"}) {
+    application {
+      id
+      notes {
+        id
+        text
+        timestamp
+        isUpdated
+        updatedBy
+        createdBy
+      }
+    }
+  }
+}
+
+
+All Applications (Not Deleted):
+
+{
+  fetchAllApplication(first: 10, offset: 0, sort: [{field: APPLICATION_DATETIME, direction: DESC}]) {
+    applications {
+      id
+      clientName
+      status
+      product
+      phoneNumber
+      branch
+      createdAt
+    }
+  }
+}
+
+
+All deleted Applications:
+
+query {
+  fetchDeletedApplications(
+    first: 5,
+    offset: 10,
+    search: "John Doe",
+    sort: [{ field: CLIENT_NAME, direction: ASC }]
+  ) {
+    applications {
+      id
+      clientName
+      phoneNumber
+      status
+      branch
+      deletedAt
+    }
+  }
+}
+

@@ -1,5 +1,5 @@
 import os
-from datetime import timedelta
+import redis
 
 
 class Config:
@@ -8,6 +8,21 @@ class Config:
     SQLALCHEMY_DATABASE_URI = os.getenv(
         'DATABASE_URI', 'postgresql://postgres:mamatdiordmli@localhost:5432/brb'
     )
+
+    SECRET_KEY = "e31692cd6a66dca5d56d0a5ccc48d528cfbf2cd1331865aa68a55398f6827d1a"
+    SESSION_TYPE = "redis"
+    SESSION_PERMANENT = False
+    SESSION_USE_SIGNER = True
+    SESSION_REDIS = redis.StrictRedis(
+        host="localhost",
+        port=6379,
+        db=0,
+        decode_responses=False
+    )
+    ADMIN_SESSION_KEY_PREFIX = "admin_session:"
+    MANAGER_SESSION_KEY_PREFIX = "manager_session:"
+    # Directory to save flask sessions
+    # app.config['SESSION_FILE_DIR'] = '/tmp/flask_session'
 
 
 class DevelopmentConfig(Config):

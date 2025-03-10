@@ -1,6 +1,8 @@
 import logging
 
 from graphene import ObjectType, Field, ID
+
+from app.api.graphql.mutations.auth.auth_decorator import login_required
 from app.api.graphql.types import Application
 from app.api.graphql.utils import build_application_response, fetch_application
 
@@ -12,12 +14,14 @@ class ApplicationQuery(ObjectType):
     GraphQL Query class for fetching an Application by its ID.
 
     Attributes:
-        fetch_by_id (Field): A GraphQL field to retrieve an application by ID.
+        fetch_application_by_id (Field): A GraphQL field to retrieve an application by ID.
     """
 
-    fetch_application_by_id = Field(Application, id=ID(required=True))
+    # fetch_current_user = Union([Manager, Admin])
+    fetch_application_by_id = Field(Application, id=ID(required=True), description="The unique application ID.")
 
     @classmethod
+    @login_required(role=["admin", "manager"])
     def resolve_fetch_application_by_id(cls, root, info, id):
         """
         Resolves the query to fetch an Application by ID.
