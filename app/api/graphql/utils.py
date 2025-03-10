@@ -1,10 +1,11 @@
 import logging
 import uuid
 
+from flask import session
 from graphql import GraphQLError
 
-from .types import Note, Application
-from app.models import Application as ApplicationModel, db
+from .types import Note, Application, Manager, Admin
+from app.models import Application as ApplicationModel, Manager as ManagerModel
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +84,8 @@ class NotesMapper:
                 text=note["text"],
                 timestamp=note["timestamp"],
                 is_updated=note.get("is_updated", False),
+                created_by=note["created_by"],
+                updated_by=note["updated_by"],
             )
         except KeyError as e:
             logger.error(f"Missing key in note data: {e}, data: {note}")
@@ -92,34 +95,85 @@ class NotesMapper:
         return None
 
 
+def _validate_id(id_value, entity_name):
+    """
+    Validates and converts an ID to an integer.
+
+    Args:
+        id_value (str | int): The ID to validate.
+        entity_name (str): The entity type (e.g., "Application", "Manager") for error messages.
+
+    Returns:
+        int: The parsed integer ID.
+
+    Raises:
+        GraphQLError: If the ID is invalid.
+    """
+    try:
+        return int(id_value)
+    except ValueError:
+        logger.error(f"Invalid {entity_name} ID format: {id_value}")
+        raise GraphQLError(f"Invalid {entity_name} ID format. It must be an integer.")
+
+
+def _check_authorization():
+    user = session.get("user")
+
+    if not user:
+        logger.error("Unauthorized access attempt - No session found.")
+        raise GraphQLError("Unauthorized access attempt - No session found.")
+
+    return user.get("role")
+
+
 def build_application_response(application):
+    """
+    Constructs an Application response object.
+
+    Args:
+        application (ManagerModel): The manager object.
+
+    Returns:
+        Application: The structured Application response.
+
+    Raises:
+        ValueError: If the application is None.
+    """
+    if application is None:
+        logger.error("Attempted to build a response for a None application.")
+        raise ValueError("Cannot build response for a None application.")
+
     notes_mapper = NotesMapper()
     notes = notes_mapper.map_notes(application)
 
     return Application(
         id=str(application.id),
-        branch_id=application.branch_id,
+        branch=application.branch_name,
         client_name=application.client_name,
         phone_number=application.phone_number,
         created_at=application.created_at.isoformat() if application.created_at else None,
         product=application.product,
         status=application.status,
-        notes=notes,
-        history_entries=application.history_entries,
         deleted_at=application.deleted_at.isoformat() if application.deleted_at else None,
         is_deleted=application.is_deleted,
+        deleted_by=application.deleted_by,
+        notes=notes,
+        history=application.history,
     )
 
 
 def get_application_by_id(id):
     """
-    Retrieves an application by its ID from the database.
+    Retrieves an application by its ID from the database with role-based filtering.
+
+    - Only Admin see all applications (is_deleted = True & False).
+    - Managers see only active applications (is_deleted = False).
 
     Args:
         id (int): The application ID.
 
     Returns:
-        RequestModel | None: The Application object if found, else None.
+        ApplicationModel | None: The Application object if found, else None.
 
     Logs:
         - WARNING if no application is found.
@@ -128,9 +182,14 @@ def get_application_by_id(id):
         logger.error("Attempted to fetch an application with an invalid ID (None).")
         return None
 
-    application = ApplicationModel.query.filter(
-        (ApplicationModel.id == int(id)) & (ApplicationModel.is_deleted == False)
-    ).first()
+    role = _check_authorization()
+
+    query = ApplicationModel.query.filter(ApplicationModel.id == int(id))
+
+    if role == "manager":
+        query = query.filter(ApplicationModel.is_deleted == False)  # Managers can't see deleted applications
+
+    application = query.first()
 
     if not application:
         logger.warning(f"Application with ID '{id}' not found.")
@@ -152,15 +211,86 @@ def fetch_application(application_id):
     Raises:
         GraphQLError: If the ID is invalid or the application is not found.
     """
-    try:
-        parsed_id = int(application_id)
-    except ValueError:
-        logger.error(f"Invalid application ID format: {application_id}")
-        raise GraphQLError("Invalid application ID format.")
+    parsed_id = _validate_id(application_id, "Application")
 
-    application = get_application_by_id(application_id)
+    application = get_application_by_id(parsed_id)
     if not application:
-        logger.warning(f"Application ID {parsed_id} not found")
+        logger.warning(f"Application ID {parsed_id} not found.")
         raise GraphQLError(f"Application with ID {parsed_id} not found.")
 
     return application
+
+
+def get_manager_by_id(manager_id):
+    """
+    Fetches a Manager by ID.
+
+    - Only Admin can see manager details.
+
+    Args:
+        manager_id (int): The ID of the manager.
+
+    Returns:
+        ManagerModel | None: The manager object if found, otherwise None.
+    """
+    if not manager_id:
+        logger.error("Attempted to fetch a manager with an invalid ID (None).")
+        return None
+
+    manager = ManagerModel.query.filter(
+        ManagerModel.id == int(manager_id)).first()  # Only Admin can see manager details
+
+    if not manager:
+        logger.warning(f"Manager with ID '{manager_id}' not found.")
+        return None
+
+    return manager
+
+
+def fetch_manager(manager_id):
+    """
+    Fetches a Manager by ID, handling validation and errors.
+
+    Args:
+        manager_id (str | int): The ID of the manager to fetch.
+
+    Returns:
+        ManagerModel: The fetched manager object.
+
+    Raises:
+        GraphQLError: If the ID is invalid or the manager is not found.
+    """
+    parsed_id = _validate_id(manager_id, "Manager")
+
+    manager = get_manager_by_id(parsed_id)
+    if not manager:
+        logger.warning(f"Manager ID {parsed_id} not found.")
+        raise GraphQLError(f"Manager with ID {parsed_id} not found.")
+
+    return manager
+
+
+def build_manager_response(manager):
+    """
+    Constructs a Manager response object.
+
+    Args:
+        manager (ManagerModel): The manager object.
+
+    Returns:
+        Manager: The structured Manager response.
+
+    Raises:
+        ValueError: If the manager is None.
+    """
+    if manager is None:
+        logger.error("Attempted to build a response for a None manager.")
+        raise ValueError("Cannot build response for a None manager.")
+
+    return Manager(
+        id=manager.id,
+        username=manager.username,
+        name=manager.name,
+        branch=manager.branch_name,
+        created_at=manager.created_at.isoformat() if manager.created_at else None,
+    )

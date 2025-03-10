@@ -1,12 +1,13 @@
 import logging
 import uuid
 
-from flask_restful.fields import String
+from flask import session
 from graphene import Mutation, Field, ID
 from graphql import GraphQLError
 from sqlalchemy.orm.attributes import flag_modified
 from datetime import datetime
 
+from app.api.graphql.mutations.auth.auth_decorator import login_required
 from app.api.graphql.types import Application, NoteInput
 from app.api.graphql.utils import build_application_response, fetch_application
 from app.extensions import db
@@ -32,6 +33,7 @@ class AddNoteToApplication(Mutation):
     application = Field(Application)
 
     @classmethod
+    @login_required(role=["admin", "manager"])
     def mutate(cls, root, info, id, note):
         """
         Adds a note to the specified application.
@@ -51,6 +53,9 @@ class AddNoteToApplication(Mutation):
         """
         application = fetch_application(id)
 
+        user_data = session.get("user")
+        user = user_data.get("name")
+
         if not isinstance(application.notes, list):
             application.notes = []
 
@@ -58,7 +63,9 @@ class AddNoteToApplication(Mutation):
             "id": str(uuid.uuid4()),
             "text": note.text,
             "timestamp": datetime.utcnow().isoformat(),
-            "is_updated": False
+            "is_updated": False,
+            "created_by": user,
+            "updated_by": None
         }
 
         application.notes.append(new_note)
@@ -70,7 +77,7 @@ class AddNoteToApplication(Mutation):
         except Exception as e:
             db.session.rollback()
             logger.error(f"Failed to commit database session: {str(e)}")
-            raise GraphQLError("Internal server error while saving the application.")
+            raise GraphQLError("Internal server error while adding note to application.")
 
         return AddNoteToApplication(application=build_application_response(application))
 
@@ -93,6 +100,7 @@ class RemoveNoteFromApplication(Mutation):
     application = Field(Application)
 
     @classmethod
+    @login_required(role=["admin", "manager"])
     def mutate(cls, root, info, id, note_id):
         """
         Removes a note from the specified application.
@@ -125,7 +133,7 @@ class RemoveNoteFromApplication(Mutation):
         except Exception as e:
             db.session.rollback()
             logger.error(f"Failed to commit database session: {str(e)}")
-            raise GraphQLError("Internal server error while saving the application.")
+            raise GraphQLError("Internal server error while removing note from application.")
 
         return RemoveNoteFromApplication(application=build_application_response(application))
 
@@ -171,6 +179,7 @@ class UpdateNoteFromApplication(Mutation):
     application = Field(Application)
 
     @classmethod
+    @login_required(role=["admin", "manager"])
     def mutate(cls, root, info, id, note_id, new_note):
         """
         Adds a note to the specified application.
@@ -199,13 +208,16 @@ class UpdateNoteFromApplication(Mutation):
         except Exception as e:
             db.session.rollback()
             logger.error(f"Failed to commit database session: {str(e)}")
-            raise GraphQLError("Internal server error while saving the application.")
+            raise GraphQLError("Internal server error while updating note from application.")
 
         return UpdateNoteFromApplication(application=build_application_response(application))
 
     @classmethod
     def _update_note(cls, application, note_id, new_note):
         note_to_update = next((n for n in application.notes if n.get("id") == note_id), None)
+
+        user_data = session.get("user")
+        user = user_data.get("name")
 
         if not note_to_update:
             logger.warning(f"Note with ID {note_id} not found in application {application.id}")
@@ -214,3 +226,4 @@ class UpdateNoteFromApplication(Mutation):
         if new_note.text is not None:
             note_to_update["text"] = new_note.text
             note_to_update["is_updated"] = True
+            note_to_update["updated_by"] = user

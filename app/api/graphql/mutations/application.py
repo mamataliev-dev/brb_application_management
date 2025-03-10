@@ -1,14 +1,15 @@
 import logging
 from datetime import datetime
 
+from flask import session
 from graphene import Mutation, Field, ID, Boolean, String
 from graphql import GraphQLError
-from sqlalchemy.orm.attributes import flag_modified
 
-from app.api.graphql.types import Application, UpdateApplicationInput, NoteInput
+from app.api.graphql.mutations.auth.auth_decorator import login_required
+from app.api.graphql.types import Application, UpdateApplicationInput
 from app.api.graphql.utils import build_application_response, fetch_application
-from app.extensions import db
 from app.models import ApplicationHistory as ApplicationHistoryModel
+from app.extensions import db
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,7 @@ class UpdateApplication(Mutation):
     application = Field(Application)
 
     @classmethod
+    @login_required(role=["admin", "manager"])
     def mutate(cls, root, info, input):
         """
         Handles the mutation for updating an application.
@@ -48,7 +50,7 @@ class UpdateApplication(Mutation):
         application = fetch_application(input.id)
 
         original_values = {
-            "branch_id": application.branch_id,
+            "branch_name": application.branch_name,
             "client_name": application.client_name,
             "phone_number": application.phone_number,
             "product": application.product,
@@ -63,7 +65,7 @@ class UpdateApplication(Mutation):
         except Exception as e:
             db.session.rollback()
             logger.error(f"Failed to commit database session: {str(e)}")
-            raise GraphQLError("Internal server error while saving the application.")
+            raise GraphQLError("Internal server error while updating application.")
 
         return UpdateApplication(application=build_application_response(application))
 
@@ -79,10 +81,7 @@ class UpdateApplication(Mutation):
        Returns:
            None
        """
-        if input.branch_id is not None:
-            application.branch_id = int(input.branch_id)
-
-        for field in ['client_name', 'phone_number', 'product', 'status']:
+        for field in ['client_name', 'phone_number', 'product', 'status', 'branch_name']:
             value = getattr(input, field, None)
             if value is not None:
                 setattr(application, field, value)
@@ -106,11 +105,7 @@ class UpdateApplication(Mutation):
         updated_fields = []
         new_values = {}
 
-        if input.branch_id is not None and input.branch_id != str(original_values["branch_id"]):
-            updated_fields.append("branch_id")
-            new_values["branch_id"] = input.branch_id
-
-        for field in ['client_name', 'phone_number', 'product', 'status']:
+        for field in ['client_name', 'phone_number', 'product', 'status', 'branch_name']:
             value = getattr(input, field, None)
             if value is not None and value != original_values[field]:
                 updated_fields.append(field)
@@ -120,14 +115,13 @@ class UpdateApplication(Mutation):
             logger.info(f"No changes detected for Application ID {application.id}. History log not created.")
             return None
 
-        history_entry = ApplicationHistoryModel(
+        history = ApplicationHistoryModel(
             application_id=application.id,
             updated_fields=updated_fields,
             previous_values=str({field: original_values[field] for field in updated_fields}),
             new_values=str({field: new_values[field] for field in updated_fields})
         )
-
-        db.session.add(history_entry)
+        db.session.add(history)
 
 
 class DeleteApplication(Mutation):
@@ -148,6 +142,7 @@ class DeleteApplication(Mutation):
     message = Field(String)
 
     @classmethod
+    @login_required(role=["admin", "manager"])
     def mutate(cls, root, info, id):
         """
         Soft-deletes an application by setting deleted_at.
@@ -165,7 +160,11 @@ class DeleteApplication(Mutation):
         """
         application = fetch_application(id)
 
+        user_data = session.get("user")
+        user = user_data.get("name") if user_data else None
+
         application.deleted_at = datetime.utcnow()
+        application.deleted_by = user
         application.is_deleted = True
         logger.debug(f"Soft-deleted application: {id}")
 
@@ -174,60 +173,6 @@ class DeleteApplication(Mutation):
         except Exception as e:
             db.session.rollback()
             logger.error(f"Failed to commit database session: {str(e)}")
-            raise GraphQLError("Internal server error while soft-deleting the application.")
+            raise GraphQLError("Internal server error while deleting application.")
 
         return DeleteApplication(success=True, message=f"Application {id} soft-deleted")
-
-
-class AddNoteToApplication(Mutation):
-    """
-    GraphQL Mutation to add a note to an existing application.
-
-    Attributes:
-       Arguments:
-           id (ID): The unique application ID.
-           note (NoteInput): The note object containing text and timestamp.
-       application (Field): The updated Application object.
-    """
-
-    class Arguments:
-        id = ID(required=True)
-        note = NoteInput(required=True)
-
-    application = Field(Application)
-
-    @classmethod
-    def mutate(cls, root, info, id, note):
-        """
-        Adds a note to the specified application.
-
-        Args:
-            root (Any): GraphQL root argument (unused).
-            info (ResolveInfo): GraphQL resolver context.
-            id (str | int): The application ID.
-            note (NoteInput): The note containing text and timestamp.
-
-        Returns:
-            AddNoteToApplication: Mutation response with updated application.
-
-        Raises:
-            GraphQLError: If the ID is invalid, the application is not found,
-                          or if the database fails to commit.
-        """
-        application = fetch_application(id)
-
-        if not isinstance(application.notes, list):
-            application.notes = []
-
-        application.notes.append({"text": note.text, "timestamp": note.timestamp})
-
-        flag_modified(application, "notes")
-
-        try:
-            db.session.commit()
-        except Exception as e:
-            db.session.rollback()
-            logger.error(f"Failed to commit database session: {str(e)}")
-            raise GraphQLError("Internal server error while saving the application.")
-
-        return AddNoteToApplication(application=build_application_response(application))

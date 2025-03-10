@@ -1,8 +1,16 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, JSON, Enum, Index, Boolean
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, JSON, Index, Boolean
 from sqlalchemy.orm import relationship
 
 from app.extensions import db
+
+
+class Admin(db.Model):
+    __tablename__ = 'admin'
+
+    id = Column(Integer, primary_key=True)
+    password = Column(String(255), nullable=False)
+    role = Column(String(255), nullable=False, default='admin')
 
 
 class ApplicationHistory(db.Model):
@@ -25,12 +33,13 @@ class ApplicationHistory(db.Model):
     id = Column(Integer, primary_key=True)
     application_id = Column(Integer, ForeignKey("applications.id"),
                             nullable=False)
-    changed_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_fields = Column(JSON, nullable=False)
     previous_values = Column(JSON, nullable=False)
     new_values = Column(JSON, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_by = Column(String(255))
 
-    application = relationship("Application", back_populates="history_entries")
+    application = relationship("Application", back_populates="history")
 
 
 class Branch(db.Model):
@@ -54,10 +63,10 @@ class Branch(db.Model):
 
     id = Column(Integer, primary_key=True)
     name = Column(String(100), nullable=False, unique=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
     managers = relationship("Manager", back_populates="branch")
     applications = relationship("Application", back_populates="branch")
-    created_at = Column(DateTime, default=datetime.utcnow)
 
     __table_args__ = (
         Index("idx_branch_name", "name"),
@@ -73,8 +82,9 @@ class Manager(db.Model):
 
     Attributes:
         id (int): Primary key for the manager.
+        username (str): Unique username of the manager for login.
         name (str): Name of the manager (max 100 characters).
-        branch_id (int): Foreign key referencing the branch the manager belongs to.
+        branch (int): Foreign key referencing the branch the manager belongs to.
         created_at (datetime): Timestamp when the manager was added.
 
     Relationships:
@@ -83,11 +93,19 @@ class Manager(db.Model):
     __tablename__ = 'managers'
 
     id = Column(Integer, primary_key=True)
+    username = Column(String(255), nullable=False, unique=True)
     name = Column(String(100), nullable=False)
-    branch_id = Column(Integer, ForeignKey('branches.id'), nullable=False)
+    password = Column(String(255), nullable=False)
+    branch_name = Column(String(100), ForeignKey('branches.name'), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+    role = Column(String(255), nullable=False, default='manager')
 
     branch = relationship("Branch", back_populates="managers")
+
+    __table_args__ = (
+        Index("idx_manager_name", "name"),
+        Index("idx_manager_username", "username")
+    )
 
 
 class Application(db.Model):
@@ -120,47 +138,19 @@ class Application(db.Model):
     id = Column(Integer, primary_key=True)
     client_name = Column(String(255), nullable=False)
     phone_number = Column(String(20), nullable=False)
-    branch_id = Column(Integer, ForeignKey('branches.id'), nullable=False)
+    branch_name = Column(String(100), ForeignKey('branches.name'), nullable=False)
     product = Column(String(255), nullable=False)
-    status = Column(Enum('in-progress', 'closed', 'transferred', name="application_status"),
-                    default='in-progress')
-    notes = Column(JSON, default=[])
-    branch = relationship("Branch", back_populates="applications")
-    history_entries = relationship("ApplicationHistory", back_populates="application", cascade="all, delete-orphan")
+    status = Column(String(100), nullable=False, default='in-progress')
     created_at = Column(DateTime, default=datetime.utcnow)
-    deleted_at = Column(DateTime, nullable=True)
+    deleted_at = Column(DateTime, default=datetime.utcnow)
     is_deleted = Column(Boolean, default=False)
+    deleted_by = Column(String(255))
+    notes = Column(JSON, default=[])
+
+    history = relationship("ApplicationHistory", back_populates="application", cascade="all, delete-orphan")
+    branch = relationship("Branch", back_populates="applications")
 
     __table_args__ = (
         Index("idx_phone_number", "phone_number"),
         Index("idx_is_deleted", "is_deleted"),
     )
-
-
-class ApplicationTransfer(db.Model):
-    """
-    Represents the transfer of an application from one branch to another.
-
-    When an application is transferred, this model records the application ID, the old branch,
-    the new branch, and the timestamp of the transfer.
-
-    Attributes:
-        id (int): Primary key for the transfer record.
-        application_id (int): Foreign key referencing the application being transferred.
-        old_branch_id (int): Foreign key referencing the branch the application was transferred from.
-        new_branch_id (int): Foreign key referencing the branch the application was transferred to.
-        transferred_at (datetime): Timestamp when the transfer occurred.
-
-    Relationships:
-        application (Application): The application being transferred.
-    """
-    __tablename__ = 'application_transfers'
-
-    id = Column(Integer, primary_key=True)
-    application_id = Column(Integer, ForeignKey('applications.id'),
-                            nullable=False)
-    old_branch_id = Column(Integer, ForeignKey('branches.id'), nullable=False)
-    new_branch_id = Column(Integer, ForeignKey('branches.id'), nullable=False)
-    transferred_at = Column(DateTime, default=datetime.utcnow)
-
-    application = relationship("Application", foreign_keys=[application_id])

@@ -1,12 +1,14 @@
 import logging
 import sys
+import redis
 
-from flask import Flask
+from flask import Flask, session
 from logging.handlers import RotatingFileHandler
 from flask_cors import CORS
 from flask_graphql import GraphQLView
-from app.api.graphql import schema
+from flask_session import Session
 
+from app.api.graphql import schema
 from app.extensions import db, migrate
 
 
@@ -36,6 +38,8 @@ def create_app(config_class='config.DevelopmentConfig'):
     app = Flask(__name__)
     CORS(app, resources={r"/.*": {"origins": "*"}})
     app.config.from_object(config_class)
+
+    Session(app)
 
     db.init_app(app)
     migrate.init_app(app, db)
