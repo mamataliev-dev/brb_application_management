@@ -7,7 +7,7 @@ from app.api.graphql.mutations.auth.auth_decorator import login_required
 from app.api.graphql.types import ApplicationConnection, ApplicationFilterInput, ApplicationSortInput, SortDirection, \
     BranchCount
 from app.models import Application as ApplicationModel
-from app.api.graphql.utils import build_application_response
+from app.api.graphql.utils.application_utils import build_application_response
 from app.extensions import db
 
 logger = logging.getLogger(__name__)

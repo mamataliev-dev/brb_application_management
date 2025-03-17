@@ -7,7 +7,8 @@ from graphql import GraphQLError
 
 from app.api.graphql.mutations.auth.auth_decorator import login_required
 from app.api.graphql.types import Application, UpdateApplicationInput
-from app.api.graphql.utils import build_application_response, fetch_application
+from app.api.graphql.utils.application_utils import build_application_response, fetch_application
+from app.api.graphql.utils.cache_utils import get_application_from_cache
 from app.models import ApplicationHistory as ApplicationHistoryModel
 from app.extensions import db
 
@@ -47,6 +48,15 @@ class UpdateApplication(Mutation):
         Raises:
             GraphQLError: If the application ID is not found.
         """
+
+        # !!!! Cache Update Strategy (Pre-population)
+        # cache_key = f"application:{id}"
+        #
+        # cached_response = get_application_from_cache(cache_key)
+        # if cached_response:
+        #     return cached_response
+        # !!!! Cache Update Strategy (Pre-population)
+
         application = fetch_application(input.id)
 
         original_values = {

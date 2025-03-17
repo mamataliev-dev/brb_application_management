@@ -6,7 +6,7 @@ from graphql import GraphQLError
 from app.api.graphql.mutations.auth.encryption_utils import encrypt_password
 from app.api.graphql.mutations.auth.auth_decorator import login_required
 from app.api.graphql.types import Manager, UpdateManagerInput
-from app.api.graphql.utils import build_manager_response, fetch_manager
+from app.api.graphql.utils.manager_utils import build_manager_response, fetch_manager
 from app.extensions import db
 
 logger = logging.getLogger(__name__)

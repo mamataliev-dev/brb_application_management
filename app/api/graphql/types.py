@@ -39,15 +39,15 @@ class Application(ObjectType):
     id = ID()
     branch = String()
     client_name = String()
-    notes = List(Note)
     phone_number = String()
     product = String()
     created_at = String()
     status = String()
-    history = List(ApplicationHistory, description="History of changes to this application")
     is_deleted = Boolean()
     deleted_at = String()
     deleted_by = String()
+    notes = List(Note)
+    history = List(ApplicationHistory)
 
 
 class NoteInput(InputObjectType):

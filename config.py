@@ -24,6 +24,10 @@ class Config:
     # Directory to save flask sessions
     # app.config['SESSION_FILE_DIR'] = '/tmp/flask_session'
 
+    REDIS_HOST = 'localhost'
+    REDIS_PORT = 6379
+    REDIS_DB = 0
+
 
 class DevelopmentConfig(Config):
     DEBUG = True

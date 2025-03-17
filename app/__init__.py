@@ -1,15 +1,14 @@
 import logging
 import sys
-import redis
 
-from flask import Flask, session
+from flask import Flask
 from logging.handlers import RotatingFileHandler
 from flask_cors import CORS
 from flask_graphql import GraphQLView
 from flask_session import Session
 
 from app.api.graphql import schema
-from app.extensions import db, migrate
+from app.extensions import db, migrate, redis_client
 
 
 def setup_logging():
@@ -40,6 +39,12 @@ def create_app(config_class='config.DevelopmentConfig'):
     app.config.from_object(config_class)
 
     Session(app)
+
+    redis_client.connection_pool.connection_kwargs.update(
+        host=app.config['REDIS_HOST'],
+        port=app.config['REDIS_PORT'],
+        db=app.config['REDIS_DB']
+    )
 
     db.init_app(app)
     migrate.init_app(app, db)
