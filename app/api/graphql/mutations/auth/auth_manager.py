@@ -8,7 +8,7 @@ from graphql import GraphQLError
 from .encryption_utils import decrypt_password, encrypt_password
 from app.api.graphql.mutations.auth.auth_decorator import login_required
 from app.api.graphql.types import Manager
-from app.api.graphql.utils import fetch_manager
+from app.api.graphql.utils.manager_utils import fetch_manager
 from app.extensions import db
 from app.models import Manager as ManagerModel
 

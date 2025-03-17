@@ -3,7 +3,7 @@ import logging
 from graphene import ObjectType, List, Int
 
 from app.api.graphql.types import Manager
-from app.api.graphql.utils import build_manager_response
+from app.api.graphql.utils.manager_utils import build_manager_response
 from app.models import Manager as ManagerModel
 from app.api.graphql.mutations.auth.auth_decorator import login_required
 
